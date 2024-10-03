@@ -1,32 +1,44 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
-	"net/http"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/khongtrunght/lenslocked/controllers"
-	"github.com/khongtrunght/lenslocked/templates/layouts"
-	"github.com/khongtrunght/lenslocked/templates/pages"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func main() {
-	router := chi.NewRouter()
-	router.Get("/", controllers.StaticHandler(pages.Home()))
-	router.Get("/about", controllers.StaticHandler(pages.About()))
-	router.Get("/contact", controllers.StaticHandler(pages.Contact()))
-	router.Get("/faq", controllers.StaticHandler(pages.Faq(
-		[]pages.Question{
-			{"What is LensLocked?", "LensLocked is a photo gallery website."},
-			{"How do I contact you?", "You can contact us by visiting the contact page."},
-			{"How do I see the photos?", "You can see the photos by visiting the gallery page."},
-		},
-	)))
-	router.Get("/main", controllers.StaticHandler(layouts.Main()))
+type PostgresConfig struct {
+	Host     string
+	Port     int
+	User     string
+	Password string
+	Dbname   string
+	Sslmode  string
+}
 
-	fmt.Println("Server is running on port 3000")
-	err := http.ListenAndServe(":3000", router)
+func (cfg PostgresConfig) String() string {
+	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s", cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.Dbname, cfg.Sslmode)
+}
+
+func main() {
+	cfg := PostgresConfig{
+		Host:     "localhost",
+		Port:     5432,
+		User:     "khongtrunght",
+		Password: "postgres",
+		Dbname:   "lenslocked",
+		Sslmode:  "disable",
+	}
+	db, err := sql.Open("pgx", cfg.String())
 	if err != nil {
 		panic(err)
 	}
+
+	defer db.Close()
+
+	err = db.Ping()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Connected to the database!")
 }
