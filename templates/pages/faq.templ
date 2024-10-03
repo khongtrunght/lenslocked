@@ -1,15 +1,18 @@
 package pages
 
-templ Faq() {
+templ Faq(qs []Question) {
 	<body>
-		<h1>Frequently Asked Questions</h1>
-		<p>Q: What is PMT V2?</p>
-		<p>A: PMT V2 is a web application that allows users to manage their projects.</p>
-		<p>Q: How do I create a project?</p>
-		<p>A: Click on the "New Project" button on the home page.</p>
-		<p>Q: How do I add tasks to a project?</p>
-		<p>A: Click on the "Add Task" button on the project page.</p>
-		<p>Q: How do I mark a task as complete?</p>
-		<p>A: Click on the checkbox next to the task.</p>
+		<h1>FAQ Page</h1>
+		<ul>
+			for _, q := range qs {
+				@question(q)
+			}
+		</ul>
 	</body>
+}
+
+templ question(q Question) {
+	<li>
+		<b>{ q.Question }</b> { q.Answer }
+	</li>
 }
