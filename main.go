@@ -41,10 +41,10 @@ func executeTemplate(w http.ResponseWriter, filepath string) {
 func main() {
 	r := chi.NewRouter()
 
-	tpl := views.Must(views.ParseFS(templates.FS, "home.gohtml"))
+	tpl := views.Must(views.ParseFS(templates.FS, "layout-page.gohtml", "home.gohtml"))
 	r.Get("/", controllers.StaticHandler(tpl))
 
-	tpl = views.Must(views.ParseFS(templates.FS, "contact.gohtml"))
+	tpl = views.Must(views.ParseFS(templates.FS, "layout-page.gohtml", "contact.gohtml"))
 	r.Get("/contact", controllers.StaticHandler(tpl))
 
 	tpl = views.Must(views.ParseFS(templates.FS, "faq.gohtml"))
