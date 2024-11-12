@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/khongtrunght/lenslocked/controllers"
+	"github.com/khongtrunght/lenslocked/templates"
 	"github.com/khongtrunght/lenslocked/views"
 )
 
@@ -40,13 +41,13 @@ func executeTemplate(w http.ResponseWriter, filepath string) {
 func main() {
 	r := chi.NewRouter()
 
-	tpl := views.Must(views.Parse(filepath.Join("templates", "home.gohtml")))
+	tpl := views.Must(views.ParseFS(templates.FS, "home.gohtml"))
 	r.Get("/", controllers.StaticHandler(tpl))
 
-	tpl = views.Must(views.Parse(filepath.Join("templates", "contact.gohtml")))
+	tpl = views.Must(views.ParseFS(templates.FS, "contact.gohtml"))
 	r.Get("/contact", controllers.StaticHandler(tpl))
 
-	tpl = views.Must(views.Parse(filepath.Join("templates", "faq.gohtml")))
+	tpl = views.Must(views.ParseFS(templates.FS, "faq.gohtml"))
 	r.Get("/faq", controllers.StaticHandler(tpl))
 
 	fmt.Println("Server is running on port 3000")
