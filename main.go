@@ -69,6 +69,7 @@ func main() {
 	usersC.Templates.SignIn = views.Must(views.ParseFS(templates.FS, "tailwind.gohtml", "signin.gohtml"))
 	r.Get("/signup", usersC.New)
 	r.Get("/signin", usersC.SignIn)
+	r.Post("/signin", usersC.ProcessSignIn)
 	r.Post("/users", usersC.Create)
 
 	fmt.Println("Server is running on port 3000")
