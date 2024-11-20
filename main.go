@@ -2,42 +2,15 @@ package main
 
 import (
 	"fmt"
-	"log/slog"
 	"net/http"
-	"path/filepath"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/gorilla/csrf"
 	"github.com/khongtrunght/lenslocked/controllers"
 	"github.com/khongtrunght/lenslocked/models"
 	"github.com/khongtrunght/lenslocked/templates"
 	"github.com/khongtrunght/lenslocked/views"
 )
-
-func homeHandler(w http.ResponseWriter, r *http.Request) {
-	tplPath := filepath.Join("templates", "home.gohtml")
-	executeTemplate(w, tplPath)
-}
-
-func contactHandler(w http.ResponseWriter, r *http.Request) {
-	tplPath := filepath.Join("templates", "contact.gohtml")
-	executeTemplate(w, tplPath)
-}
-
-func faqHandler(w http.ResponseWriter, r *http.Request) {
-	tplPath := filepath.Join("templates", "faq.gohtml")
-	executeTemplate(w, tplPath)
-}
-
-func executeTemplate(w http.ResponseWriter, filepath string) {
-	t, err := views.Parse(filepath)
-	if err != nil {
-		slog.Error("error parsing template", slog.Any("error", err))
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	t.Execute(w, nil, nil)
-}
 
 func main() {
 	r := chi.NewRouter()
@@ -73,6 +46,9 @@ func main() {
 	r.Post("/users", usersC.Create)
 	r.Get("/users/me", usersC.CurrentUser)
 
+	csrfKey := "csrf_token"
+	csrfMw := csrf.Protect([]byte(csrfKey), csrf.Secure(false)) // TODO: set to true in production
+
 	fmt.Println("Server is running on port 3000")
-	http.ListenAndServe(":3000", r)
+	http.ListenAndServe(":3000", csrfMw(r))
 }

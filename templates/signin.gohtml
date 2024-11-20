@@ -3,6 +3,9 @@
   <div class="px-8 py-8 bg-white rounded shadow">
     <h1 class="text-3xl font-semibold mb-8">Welcome back</h1>
     <form action="/signin" method="post">
+      <div class="hidden">
+        {{csrfField}}
+      </div>
       <div class="py-2">
         <label class="text-sm font-semibold" for="email">Email Address</label>
         <input type="email" id="email" name="email" placeholder="Email address" required autocomplete="email"
