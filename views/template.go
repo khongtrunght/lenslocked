@@ -9,6 +9,8 @@ import (
 	"net/http"
 
 	"github.com/gorilla/csrf"
+	"github.com/khongtrunght/lenslocked/context"
+	"github.com/khongtrunght/lenslocked/models"
 )
 
 func Must(t Template, err error) Template {
@@ -23,6 +25,9 @@ func ParseFS(fs fs.FS, patterns ...string) (Template, error) {
 	tpl = tpl.Funcs(template.FuncMap{
 		"csrfField": func() (template.HTML, error) {
 			return "", fmt.Errorf("csrfField not implemented")
+		},
+		"currentUser": func() (string, error) {
+			return "", fmt.Errorf("currentUser not implemented")
 		},
 	})
 
@@ -57,6 +62,9 @@ func (t Template) Execute(w http.ResponseWriter, r *http.Request, data interface
 		"csrfField": func() template.HTML {
 			return csrf.TemplateField(r)
 		},
+		"currentUser": func() *models.User {
+			return context.User(r.Context())
+		},
 	})
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
@@ -64,7 +72,7 @@ func (t Template) Execute(w http.ResponseWriter, r *http.Request, data interface
 	err = tpl.Execute(&buf, data)
 	if err != nil {
 		slog.Error("error executing template", slog.Any("error", err))
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		http.Error(w, "There was an error executing the template.", http.StatusInternalServerError)
 		return
 	}
 
