@@ -31,6 +31,8 @@ func main() {
 		panic(err)
 	}
 
+	err = models.Migrate(db, "migrations")
+
 	userService := models.UserService{
 		DB: db,
 	}
