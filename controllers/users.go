@@ -91,5 +91,5 @@ func (u Users) CurrentUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "This is the user: %s\n", user)
+	fmt.Fprintf(w, "This is the user: %+v\n", user)
 }

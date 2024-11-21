@@ -44,13 +44,53 @@ func (ss *SessionService) Create(userID int) (*Session, error) {
 		TokenHash: ss.hash(token),
 	}
 
-	// TODO: save to the database
+	row := ss.DB.QueryRow(`
+      UPDATE sessions
+      SET token_hash = $1
+      WHERE user_id = $2
+      RETURNING id;
+    `, session.TokenHash, session.UserID)
+	err = row.Scan(&session.ID)
+	if err == sql.ErrNoRows {
+		row = ss.DB.QueryRow(`
+    INSERT INTO sessions (user_id, token_hash)
+    VALUES ($1, $2) RETURNING id;
+  `, session.UserID, session.TokenHash)
+		err = row.Scan(&session.ID)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("create: %w", err)
+	}
 	return &session, nil
 }
 
 func (ss *SessionService) User(token string) (*User, error) {
-	// TODO: Implement the User method
-	return nil, nil
+	tokenHash := ss.hash(token)
+	var user User
+	row := ss.DB.QueryRow(`
+    SELECT users.id, users.email, users.password_hash
+    FROM users
+    JOIN sessions
+    ON users.id = sessions.user_id
+    WHERE sessions.token_hash = $1;
+  `, tokenHash)
+	err := row.Scan(&user.ID, &user.Email, &user.PasswordHash)
+	if err != nil {
+		return nil, fmt.Errorf("user: %w", err)
+	}
+	return &user, nil
+}
+
+func (ss *SessionService) Delete(token string) error {
+	tokenHash := ss.hash(token)
+	_, err := ss.DB.Exec(`
+    DELETE FROM sessions
+    WHERE token_hash = $1;
+  `, tokenHash)
+	if err != nil {
+		return fmt.Errorf("delete: %w", err)
+	}
+	return nil
 }
 
 func (ss *SessionService) hash(token string) string {
