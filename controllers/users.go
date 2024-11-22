@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 
 	"github.com/khongtrunght/lenslocked/context"
 	"github.com/khongtrunght/lenslocked/models"
@@ -11,11 +12,15 @@ import (
 
 type Users struct {
 	Templates struct {
-		New    Template
-		SignIn Template
+		New            Template
+		SignIn         Template
+		ForgotPassword Template
+		CheckYourEmail Template
 	}
-	UserService    *models.UserService
-	SessionService *models.SessionService
+	UserService          *models.UserService
+	SessionService       *models.SessionService
+	PasswordResetService *models.PasswordResetService
+	EmailService         *models.EmailService
 }
 
 func (u Users) New(w http.ResponseWriter, r *http.Request) {
@@ -100,6 +105,41 @@ func (u Users) ProcessSignOut(w http.ResponseWriter, r *http.Request) {
 	deleteCookie(w, CookieSession)
 
 	http.Redirect(w, r, "/signin", http.StatusFound)
+}
+
+func (u Users) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var data struct {
+		Email string
+	}
+	data.Email = r.FormValue("email")
+	u.Templates.ForgotPassword.Execute(w, r, data)
+}
+
+func (u Users) ProcessForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var data struct {
+		Email string
+	}
+	data.Email = r.FormValue("email")
+	pwReset, err := u.PasswordResetService.Create(data.Email)
+	if err != nil {
+		// TODO: Handle other cases in the future. For instance, when the user does not exist.
+		slog.Error("error creating password reset", slog.Any("error", err))
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
+		return
+	}
+
+	vals := url.Values{
+		"token": {pwReset.Token},
+	}
+	resetURL := fmt.Sprintf("http://localhost:3000/reset-pw?%s", vals.Encode())
+	err = u.EmailService.ForgotPassword(data.Email, resetURL)
+	if err != nil {
+		slog.Error("error sending forgot password email", slog.Any("error", err))
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
+		return
+	}
+
+	u.Templates.CheckYourEmail.Execute(w, r, data)
 }
 
 type UserMiddleware struct {
