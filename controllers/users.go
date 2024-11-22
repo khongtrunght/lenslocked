@@ -7,6 +7,7 @@ import (
 	"net/url"
 
 	"github.com/khongtrunght/lenslocked/context"
+	"github.com/khongtrunght/lenslocked/errors"
 	"github.com/khongtrunght/lenslocked/models"
 )
 
@@ -33,12 +34,18 @@ func (u Users) New(w http.ResponseWriter, r *http.Request) {
 }
 
 func (u Users) Create(w http.ResponseWriter, r *http.Request) {
-	email := r.FormValue("email")
-	password := r.FormValue("password")
-	user, err := u.UserService.Create(email, password)
+	var data struct {
+		Email    string
+		Password string
+	}
+	data.Email = r.FormValue("email")
+	data.Password = r.FormValue("password")
+	user, err := u.UserService.Create(data.Email, data.Password)
 	if err != nil {
-		slog.Error("error creating user", slog.Any("error", err))
-		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
+		if errors.Is(err, models.ErrEmailTaken) {
+			err = errors.Public(err, "That email is already associated with an account.")
+		}
+		u.Templates.New.Execute(w, r, data, err)
 		return
 	}
 	session, err := u.SessionService.Create(user.ID)
