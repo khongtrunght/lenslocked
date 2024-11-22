@@ -2,24 +2,41 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"strconv"
 
+	"github.com/joho/godotenv"
 	"github.com/khongtrunght/lenslocked/models"
 )
 
 func main() {
-	cfg := models.DefaultPostgresConfig()
-
-	db, err := models.Open(cfg)
+	err := godotenv.Load()
 	if err != nil {
-		panic(err)
+		log.Fatalf("failed to load env: %s", err)
 	}
 
-	defer db.Close()
-
-	err = db.Ping()
+	host := os.Getenv("SMTP_HOST")
+	portStr := os.Getenv("SMTP_PORT")
+	username := os.Getenv("SMTP_USERNAME")
+	password := os.Getenv("SMTP_PASSWORD")
+	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		panic(err)
+		log.Fatalf("failed to convert port to int: %s", err)
+	}
+	es, err := models.NewEmailService(models.SMTPConfig{
+		Host:     host,
+		Port:     port,
+		Username: username,
+		Password: password,
+	})
+	if err != nil {
+		log.Fatalf("failed to create email service: %s", err)
 	}
 
-	fmt.Println("Connected to the database")
+	if err := es.ForgotPassword("khongtrunght@gmail.com", "https://google.com"); err != nil {
+		log.Fatalf("failed to send forgot password email: %s", err)
+	}
+
+	fmt.Println("forgot password email sent")
 }
