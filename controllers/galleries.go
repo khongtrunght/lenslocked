@@ -8,10 +8,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/khongtrunght/lenslocked/context"
 	"github.com/khongtrunght/lenslocked/models"
+	"golang.org/x/exp/rand"
 )
 
 type Galleries struct {
 	Templates struct {
+		Show  Template
 		New   Template
 		Edit  Template
 		Index Template
@@ -44,6 +46,39 @@ func (g Galleries) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	editPath := fmt.Sprintf("/galleries/%d/edit", gallery.ID)
 	http.Redirect(w, r, editPath, http.StatusFound)
+}
+
+func (g Galleries) Show(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "Invalid gallery ID", http.StatusNotFound)
+		return
+	}
+	gallery, err := g.GalleryService.ByID(id)
+	if err != nil {
+		if err == models.ErrNotFound {
+			http.Error(w, "Gallery not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	var data struct {
+		ID     int
+		Title  string
+		Images []string
+	}
+
+	data.ID = gallery.ID
+	data.Title = gallery.Title
+	for i := 0; i < 20; i++ {
+		w, h := rand.Intn(500)+200, rand.Intn(500)+200
+		catImg := fmt.Sprintf("https://picsum.photos/%d/%d", w, h)
+		data.Images = append(data.Images, catImg)
+	}
+
+	g.Templates.Show.Execute(w, r, data)
 }
 
 func (g Galleries) Edit(w http.ResponseWriter, r *http.Request) {
