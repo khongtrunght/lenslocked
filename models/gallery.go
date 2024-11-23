@@ -50,6 +50,7 @@ func (gs *GalleryService) ByUserID(userID int) ([]Gallery, error) {
 	rows, err := gs.DB.Query(`
     SELECT id, title FROM galleries
     WHERE user_id = $1
+    ORDER BY id
   `, userID)
 	if err != nil {
 		return nil, fmt.Errorf("query galleries by user: %w", err)
