@@ -156,6 +156,7 @@ func main() {
 			r.Get("/new", galleriesC.New)
 			r.Get("/{id}/edit", galleriesC.Edit)
 			r.Post("/{id}", galleriesC.Update)
+			r.Post("/{id}/delete", galleriesC.Delete)
 		})
 	})
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
