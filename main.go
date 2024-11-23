@@ -91,6 +91,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	galleriesService := &models.GalleryService{
+		DB: db,
+	}
 
 	// Setup Middleware
 
@@ -113,6 +116,11 @@ func main() {
 	usersC.Templates.CheckYourEmail = views.Must(views.ParseFS(templates.FS, "tailwind.gohtml", "check-your-email.gohtml"))
 	usersC.Templates.ResetPassword = views.Must(views.ParseFS(templates.FS, "tailwind.gohtml", "reset-pw.gohtml"))
 
+	galleriesC := controllers.Galleries{
+		GalleryService: galleriesService,
+	}
+	galleriesC.Templates.New = views.Must(views.ParseFS(templates.FS, "tailwind.gohtml", "galleries/new.gohtml"))
+
 	// Setup our router and routes
 	r := chi.NewRouter()
 	r.Use(csrfMw)
@@ -134,6 +142,7 @@ func main() {
 		r.Use(umw.RequireUser)
 		r.Get("/", usersC.CurrentUser)
 	})
+	r.Get("/galleries/new", galleriesC.New)
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Page not found", http.StatusNotFound)
 	})
