@@ -33,4 +33,8 @@ tmp/
 # _templ.go files
 *templ.go
 
+# Image files
+images/
 
+# Apple 
+.DS_Store
