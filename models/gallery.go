@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -105,6 +106,11 @@ func (gs *GalleryService) Delete(id int) error {
 	if err != nil {
 		return fmt.Errorf("delete gallery: %w", err)
 	}
+
+	err = os.RemoveAll(gs.galleryDir(id))
+	if err != nil {
+		return fmt.Errorf("delete gallery images: %w", err)
+	}
 	return nil
 }
 
@@ -147,6 +153,35 @@ func (gs *GalleryService) Image(galleryID int, filename string) (Image, error) {
 	}, nil
 }
 
+func (gs *GalleryService) CreateImage(galleryID int, filename string, content io.ReadSeeker) error {
+	err := checkContentType(content, gs.imageContentTypes())
+	if err != nil {
+		return fmt.Errorf("create image %v: %w", filename, err)
+	}
+	err = checkExtension(filename, gs.extensions())
+	if err != nil {
+		return fmt.Errorf("create image %v: %w", filename, err)
+	}
+
+	galleryDir := gs.galleryDir(galleryID)
+	err = os.MkdirAll(galleryDir, 0755)
+	if err != nil {
+		return fmt.Errorf("creating gallery-%d directory: %w", galleryID, err)
+	}
+	imagePath := filepath.Join(galleryDir, filename)
+	file, err := os.Create(imagePath)
+	if err != nil {
+		return fmt.Errorf("creating image file: %w", err)
+	}
+	defer file.Close()
+	_, err = file.ReadFrom(content)
+	if err != nil {
+		return fmt.Errorf("writing image content: %w", err)
+	}
+
+	return nil
+}
+
 func (gs *GalleryService) DeleteImage(galleryID int, filename string) error {
 	image, err := gs.Image(galleryID, filename)
 	if err != nil {
@@ -161,6 +196,10 @@ func (gs *GalleryService) DeleteImage(galleryID int, filename string) error {
 
 func (gs *GalleryService) extensions() []string {
 	return []string{".jpg", ".png", ".jpeg", ".gif"}
+}
+
+func (gs *GalleryService) imageContentTypes() []string {
+	return []string{"image/png", "image/jpeg", "image/gif"}
 }
 
 func (gs *GalleryService) galleryDir(id int) string {
