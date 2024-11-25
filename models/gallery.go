@@ -4,7 +4,18 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
 )
+
+type Image struct {
+	// TODO: Add fields to this type
+	GalleryID int
+	Path      string
+	Filename  string
+}
 
 type Gallery struct {
 	ID     int
@@ -14,6 +25,10 @@ type Gallery struct {
 
 type GalleryService struct {
 	DB *sql.DB
+
+	// ImagesDir is used to tell the GalleryService where to store and locate
+	// images. If not set, it will default to "images" directory.
+	ImagesDir string
 }
 
 func (gs *GalleryService) Create(title string, userID int) (*Gallery, error) {
@@ -91,4 +106,79 @@ func (gs *GalleryService) Delete(id int) error {
 		return fmt.Errorf("delete gallery: %w", err)
 	}
 	return nil
+}
+
+func (gs *GalleryService) Images(galleryID int) ([]Image, error) {
+	globPattern := filepath.Join(gs.galleryDir(galleryID), "*")
+
+	allFiles, err := filepath.Glob(globPattern)
+	if err != nil {
+		return nil, fmt.Errorf("retrieving gallery images: %w", err)
+	}
+
+	var images []Image
+	for _, file := range allFiles {
+		if hasExtension(file, gs.extensions()) {
+			images = append(images, Image{
+				Path:      file,
+				Filename:  filepath.Base(file),
+				GalleryID: galleryID,
+			})
+		}
+	}
+
+	return images, nil
+}
+
+func (gs *GalleryService) Image(galleryID int, filename string) (Image, error) {
+	imagePath := filepath.Join(gs.galleryDir(galleryID), filename)
+	_, err := os.Stat(imagePath)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return Image{}, ErrNotFound
+		}
+		return Image{}, fmt.Errorf("querying for image: %w", err)
+	}
+
+	return Image{
+		Filename:  filename,
+		GalleryID: galleryID,
+		Path:      imagePath,
+	}, nil
+}
+
+func (gs *GalleryService) DeleteImage(galleryID int, filename string) error {
+	image, err := gs.Image(galleryID, filename)
+	if err != nil {
+		return fmt.Errorf("delete image: %w", err)
+	}
+	err = os.Remove(image.Path)
+	if err != nil {
+		return fmt.Errorf("delete image: %w", err)
+	}
+	return nil
+}
+
+func (gs *GalleryService) extensions() []string {
+	return []string{".jpg", ".png", ".jpeg", ".gif"}
+}
+
+func (gs *GalleryService) galleryDir(id int) string {
+	imagesDir := gs.ImagesDir
+	if imagesDir == "" {
+		imagesDir = "images"
+	}
+
+	return filepath.Join(imagesDir, fmt.Sprintf("gallery-%d", id))
+}
+
+func hasExtension(file string, extensions []string) bool {
+	for _, ext := range extensions {
+		file = strings.ToLower(file)
+		ext = strings.ToLower(ext)
+		if filepath.Ext(file) == ext {
+			return true
+		}
+	}
+	return false
 }

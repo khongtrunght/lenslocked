@@ -3,12 +3,14 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"net/url"
+	"path/filepath"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/khongtrunght/lenslocked/context"
+	"github.com/khongtrunght/lenslocked/errors"
 	"github.com/khongtrunght/lenslocked/models"
-	"golang.org/x/exp/rand"
 )
 
 type Galleries struct {
@@ -54,20 +56,33 @@ func (g Galleries) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	type Image struct {
+		GalleryID       int
+		Filename        string
+		FilenameEscaped string
+	}
+
 	var data struct {
 		ID     int
 		Title  string
-		Images []string
+		Images []Image
 	}
 
 	data.ID = gallery.ID
 	data.Title = gallery.Title
-	for i := 0; i < 20; i++ {
-		w, h := rand.Intn(500)+200, rand.Intn(500)+200
-		catImg := fmt.Sprintf("https://picsum.photos/%d/%d", w, h)
-		data.Images = append(data.Images, catImg)
-	}
 
+	images, err := g.GalleryService.Images(gallery.ID)
+	if err != nil {
+		http.Error(w, "Failed to get gallery images", http.StatusInternalServerError)
+		return
+	}
+	for _, image := range images {
+		data.Images = append(data.Images, Image{
+			GalleryID:       image.GalleryID,
+			Filename:        image.Filename,
+			FilenameEscaped: url.PathEscape(image.Filename),
+		})
+	}
 	g.Templates.Show.Execute(w, r, data)
 }
 
@@ -77,12 +92,32 @@ func (g Galleries) Edit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := struct {
-		ID    int
-		Title string
-	}{
-		ID:    gallery.ID,
-		Title: gallery.Title,
+	type Image struct {
+		GalleryID       int
+		Filename        string
+		FilenameEscaped string
+	}
+
+	var data struct {
+		ID     int
+		Title  string
+		Images []Image
+	}
+
+	data.ID = gallery.ID
+	data.Title = gallery.Title
+
+	images, err := g.GalleryService.Images(gallery.ID)
+	if err != nil {
+		http.Error(w, "Failed to get gallery images", http.StatusInternalServerError)
+		return
+	}
+	for _, image := range images {
+		data.Images = append(data.Images, Image{
+			GalleryID:       image.GalleryID,
+			Filename:        image.Filename,
+			FilenameEscaped: url.PathEscape(image.Filename),
+		})
 	}
 
 	g.Templates.Edit.Execute(w, r, data)
@@ -144,6 +179,50 @@ func (g Galleries) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, "/galleries", http.StatusFound)
+}
+
+func (g Galleries) Image(w http.ResponseWriter, r *http.Request) {
+	filename := chi.URLParam(r, "filename")
+	galleryID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "Invalid gallery ID", http.StatusNotFound)
+		return
+	}
+
+	image, err := g.GalleryService.Image(galleryID, filename)
+	if err != nil {
+		if errors.Is(err, models.ErrNotFound) {
+			http.Error(w, "Image not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	http.ServeFile(w, r, image.Path)
+}
+
+func (g Galleries) DeleteImage(w http.ResponseWriter, r *http.Request) {
+	filename := g.filename(w, r)
+
+	gallery, err := g.galleryByID(w, r, userMustOwnGallery)
+	if err != nil {
+		return
+	}
+
+	err = g.GalleryService.DeleteImage(gallery.ID, filename)
+	if err != nil {
+		http.Error(w, "Failed to delete image", http.StatusInternalServerError)
+		return
+	}
+
+	editPath := fmt.Sprintf("/galleries/%d/edit", gallery.ID)
+	http.Redirect(w, r, editPath, http.StatusFound)
+}
+
+func (g Galleries) filename(w http.ResponseWriter, r *http.Request) string {
+	filename := chi.URLParam(r, "filename")
+	return filepath.Base(filename)
 }
 
 type galleryOpt func(http.ResponseWriter, *http.Request, *models.Gallery) error
