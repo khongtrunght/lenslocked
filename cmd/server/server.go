@@ -36,24 +36,30 @@ func loadEnvConfig() (config, error) {
 		return cfg, err
 	}
 
-	cfg.PSQL = models.DefaultPostgresConfig()
+	cfg.PSQL = models.PostgresConfig{
+		Host:     os.Getenv("PSQL_HOST"),
+		Port:     os.Getenv("PSQL_PORT"),
+		User:     os.Getenv("PSQL_USER"),
+		Password: os.Getenv("PSQL_PASSWORD"),
+		Database: os.Getenv("PSQL_DATABASE"),
+		SSLMode:  os.Getenv("PSQL_SSLMODE"),
+	}
+	if cfg.PSQL.Host == "" && cfg.PSQL.Port == "" {
+		return cfg, fmt.Errorf("No PSQL config provied.")
+	}
 
-	// host := os.Getenv("SMTP_HOST")
-	// portStr := os.Getenv("SMTP_PORT")
-	// username := os.Getenv("SMTP_USERNAME")
-	// password := os.Getenv("SMTP_PASSWORD")
 	cfg.SMTP.Host = os.Getenv("SMTP_HOST")
 	portStr := os.Getenv("SMTP_PORT")
-	cfg.SMTP.Username = os.Getenv("SMTP_USERNAME")
-	cfg.SMTP.Password = os.Getenv("SMTP_PASSWORD")
 	cfg.SMTP.Port, err = strconv.Atoi(portStr)
 	if err != nil {
 		return cfg, err
 	}
+	cfg.SMTP.Username = os.Getenv("SMTP_USERNAME")
+	cfg.SMTP.Password = os.Getenv("SMTP_PASSWORD")
 
-	cfg.CSRF.Key = "csrf_token"
-	cfg.CSRF.Secure = false
-	cfg.Server.Address = ":3000"
+	cfg.CSRF.Key = os.Getenv("CSRF_KEY")
+	cfg.CSRF.Secure = os.Getenv("CSRF_SECURE") == "true"
+	cfg.Server.Address = os.Getenv("SERVER_ADDRESS")
 
 	return cfg, nil
 }
@@ -63,6 +69,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Printf("%+v\n", cfg)
 
 	db, err := models.Open(cfg.PSQL)
 	if err != nil {
@@ -103,7 +111,7 @@ func main() {
 
 	csrfMw := csrf.Protect(
 		[]byte(cfg.CSRF.Key),
-		csrf.Secure(cfg.CSRF.Secure), // TODO: set to true in production
+		csrf.Secure(cfg.CSRF.Secure),
 		csrf.Path("/"))
 	// Setup controllers
 	usersC := controllers.Users{
@@ -158,6 +166,7 @@ func main() {
 			r.Get("/{id}/edit", galleriesC.Edit)
 			r.Post("/{id}", galleriesC.Update)
 			r.Post("/{id}/delete", galleriesC.Delete)
+			r.Post("/{id}/images", galleriesC.UploadImage)
 			r.Post("/{id}/images/{filename}/delete", galleriesC.DeleteImage)
 		})
 	})

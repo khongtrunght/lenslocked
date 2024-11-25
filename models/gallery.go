@@ -12,7 +12,6 @@ import (
 )
 
 type Image struct {
-	// TODO: Add fields to this type
 	GalleryID int
 	Path      string
 	Filename  string
