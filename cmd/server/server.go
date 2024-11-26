@@ -70,17 +70,24 @@ func main() {
 		panic(err)
 	}
 
+	err = run(cfg)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func run(cfg config) error {
 	fmt.Printf("%+v\n", cfg)
 
 	db, err := models.Open(cfg.PSQL)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer db.Close()
 
 	err = models.MigrateFS(db, migrations.FS, ".")
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	// Setup service
@@ -97,7 +104,7 @@ func main() {
 	}
 	emailService, err := models.NewEmailService(cfg.SMTP)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	galleriesService := &models.GalleryService{
 		DB: db,
@@ -170,13 +177,15 @@ func main() {
 			r.Post("/{id}/images/{filename}/delete", galleriesC.DeleteImage)
 		})
 	})
+
+	assertHandler := http.FileServer(http.Dir("assets"))
+	r.Get("/assets/*", http.StripPrefix("/assets", assertHandler).ServeHTTP)
+
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Page not found", http.StatusNotFound)
 	})
 
 	// Start the server
 	fmt.Printf("Server is running on port %s...\n", cfg.Server.Address)
-	if err := http.ListenAndServe(cfg.Server.Address, r); err != nil {
-		panic(err)
-	}
+	return http.ListenAndServe(cfg.Server.Address, r)
 }
